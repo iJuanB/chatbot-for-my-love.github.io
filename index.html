@@ -20,13 +20,14 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
             height: 100%;
+            max-width: 100%;
             overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
         .chat-header {
-            background-color: #8c9daf;
+            background-color: #2e2e2e;
             color: white;
             padding: 10px;
             text-align: center;
@@ -37,6 +38,8 @@
             padding: 10px;
             overflow-y: auto;
             border-bottom: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
         }
 
         .message {
@@ -55,13 +58,50 @@
         }
 
         .message.user .content {
-            background-color: #007bff;
+            background-color: #2e2e2e;
             color: white;
         }
 
         .message.bot .content {
             background-color: #f1f1f1;
             color: black;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .typing-indicator .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 2px;
+            background-color: #888;
+            border-radius: 50%;
+            animation: blink 1.4s infinite both;
+        }
+
+        .typing-indicator .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes blink {
+            0%, 80%, 100% {
+                opacity: 0;
+            }
+            40% {
+                opacity: 1;
+            }
+        }
+
+        .typing-indicator.show {
+            display: flex;
         }
 
         .chat-input {
@@ -83,12 +123,12 @@
         }
 
         .chat-input input:focus {
-            border-color: #007bff;
+            border-color: #202020;
         }
 
         .chat-input button {
             padding: 10px 20px;
-            background-color: #007bff;
+            background-color: #2e2e2e;
             color: white;
             border: none;
             border-radius: 24px;
@@ -97,7 +137,7 @@
         }
 
         .chat-input button:hover {
-            background-color: #0056b3;
+            background-color: #202020;
         }
     </style>
 </head>
@@ -108,6 +148,11 @@
         </div>
         <div class="chat-messages" id="chat-messages">
             <!-- Mensajes aparecerán aquí -->
+        </div>
+        <div class="typing-indicator" id="typing-indicator">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
         </div>
         <div class="chat-input">
             <input type="text" id="question" placeholder="Type your message...">
@@ -131,14 +176,13 @@
             console.log(result)
             return result;
         }
-    
+        
         query({ "question": "." }).then((session) => {
                 sessionId = session.sessionId
                 console.log(sessionId)
             }).catch(error => {
                 console.error('Error:', error);
-                addMessage('An error occurred', 'bot');
-            });
+        });
 
         function addMessage(content, sender) {
             const messageContainer = document.createElement('div');
@@ -147,13 +191,40 @@
             const messageContent = document.createElement('div');
             messageContent.classList.add('content');
             messageContent.textContent = content;
-
             messageContainer.appendChild(messageContent);
             document.getElementById('chat-messages').appendChild(messageContainer);
 
-            // Scroll to the bottom of the chat
-            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            return messageContent;
         }
+
+        function typeText(element, text, speed = 25) {
+            let i = 0;
+            function typing() {
+                if (i < text.length) {
+                    element.append(text.charAt(i));
+                    i++;
+                    setTimeout(typing, speed);
+                }
+            }
+            typing();
+        }
+
+        function showTypingIndicator() {
+            document.getElementById('typing-indicator').classList.add('show');
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typing-indicator').classList.remove('show');
+        }
+
+        // Función para enviar un mensaje de bienvenida
+        function sendWelcomeMessage() {
+            const welcomeMessage = "Hola, soy el Flowise Chatbot. ¿En qué puedo ayudarte hoy?";
+            const messageContent = addMessage('', 'bot');
+            typeText(messageContent, welcomeMessage);
+        }
+
+        window.onload = sendWelcomeMessage;
 
         document.getElementById('submit').addEventListener('click', () => {
             const questionInput = document.getElementById('question');
@@ -163,29 +234,30 @@
             addMessage(question, 'user');
             questionInput.value = '';
 
+            showTypingIndicator();
+
             query({ "question": question, 
                     "overrideConfig": {
                         "sessionId": sessionId
                     }
             }).then((response) => {
-                addMessage(response.text, 'bot');
+                hideTypingIndicator();
+                const messageContent = addMessage('', 'bot');
+                typeText(messageContent, response.text);
+
             }).catch(error => {
                 console.error('Error:', error);
+                hideTypingIndicator();
                 addMessage('An error occurred', 'bot');
             });
         });
 
-        // Allow pressing Enter to send a message
+        // Permite presionar Enter para enviar un mensaje
         document.getElementById('question').addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 document.getElementById('submit').click();
             }
         });
-
-        window.onload = () => {
-            const welcomeMessage = "Hola, soy el Flowise Chatbot. ¿En qué puedo ayudarte hoy?";
-            addMessage(welcomeMessage, 'bot');
-        };
     </script>
 </body>
 </html>
